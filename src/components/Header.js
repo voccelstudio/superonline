@@ -1,14 +1,45 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import Link from 'next/link'
+import { useRouter } from 'next/navigation'
 import { useCart } from '@/context/CartContext'
 import { categories } from '@/data/products'
+import { supabase } from '@/lib/supabase'
 
 export default function Header() {
+  const router = useRouter()
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
   const [categoriesOpen, setCategoriesOpen] = useState(false)
+  const [userMenuOpen, setUserMenuOpen] = useState(false)
+  const [user, setUser] = useState(null)
+  const [isAdmin, setIsAdmin] = useState(false)
   const { totalItems } = useCart()
+
+  useEffect(() => {
+    supabase.auth.getUser().then(({ data }) => {
+      if (data?.user) {
+        setUser(data.user)
+        supabase
+          .from('profiles')
+          .select('role')
+          .eq('id', data.user.id)
+          .single()
+          .then(({ data: profile }) => {
+            if (profile?.role === 'admin') setIsAdmin(true)
+          })
+      }
+    })
+  }, [])
+
+  const handleLogout = async () => {
+    await supabase.auth.signOut()
+    setUser(null)
+    setIsAdmin(false)
+    setUserMenuOpen(false)
+    router.push('/')
+    router.refresh()
+  }
 
   return (
     <header className="bg-white shadow-sm sticky top-0 z-50">
@@ -76,7 +107,47 @@ export default function Header() {
             </Link>
           </nav>
 
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2">
+            {user ? (
+              <div className="relative">
+                <button
+                  onClick={() => setUserMenuOpen(!userMenuOpen)}
+                  className="flex items-center gap-2 px-3 py-2 text-sm font-medium text-gray-700 hover:text-primary-600 rounded-lg hover:bg-primary-50 transition-colors"
+                >
+                  <span className="w-7 h-7 bg-primary-100 text-primary-600 rounded-full flex items-center justify-center text-xs font-bold">
+                    {user.email?.[0]?.toUpperCase() || 'U'}
+                  </span>
+                  <span className="hidden sm:inline">{user.email?.split('@')[0]}</span>
+                </button>
+                {userMenuOpen && (
+                  <div className="absolute right-0 top-full mt-1 bg-white rounded-xl shadow-lg border border-gray-100 p-2 w-48">
+                    {isAdmin && (
+                      <Link
+                        href="/admin"
+                        onClick={() => setUserMenuOpen(false)}
+                        className="block px-4 py-2.5 text-sm text-gray-700 hover:text-primary-600 hover:bg-primary-50 rounded-lg transition-colors"
+                      >
+                        ⚙️ Panel Admin
+                      </Link>
+                    )}
+                    <button
+                      onClick={handleLogout}
+                      className="w-full text-left px-4 py-2.5 text-sm text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                    >
+                      Cerrar Sesión
+                    </button>
+                  </div>
+                )}
+              </div>
+            ) : (
+              <Link
+                href="/auth/login"
+                className="hidden sm:inline-flex px-4 py-2 text-sm font-medium text-gray-700 hover:text-primary-600 rounded-lg hover:bg-primary-50 transition-colors"
+              >
+                Ingresar
+              </Link>
+            )}
+
             <Link
               href="/carrito"
               className="relative p-2 text-gray-700 hover:text-primary-600 transition-colors"
@@ -108,38 +179,24 @@ export default function Header() {
 
         {mobileMenuOpen && (
           <div className="lg:hidden border-t border-gray-100 py-4 space-y-1">
-            <Link
-              href="/"
-              className="block px-4 py-2.5 text-sm font-medium text-gray-700 hover:text-primary-600 hover:bg-primary-50 rounded-lg transition-colors"
-              onClick={() => setMobileMenuOpen(false)}
-            >
-              Inicio
-            </Link>
+            <Link href="/" className="block px-4 py-2.5 text-sm font-medium text-gray-700 hover:bg-primary-50 rounded-lg" onClick={() => setMobileMenuOpen(false)}>Inicio</Link>
             <div className="px-4 py-2 text-sm font-medium text-gray-400">Categorías</div>
             {categories.map((cat) => (
-              <Link
-                key={cat.id}
-                href={`/productos?categoria=${cat.slug}`}
-                className="block px-4 py-2 pl-8 text-sm text-gray-600 hover:text-primary-600 hover:bg-primary-50 rounded-lg transition-colors"
-                onClick={() => setMobileMenuOpen(false)}
-              >
-                {cat.name}
-              </Link>
+              <Link key={cat.id} href={`/productos?categoria=${cat.slug}`}
+                className="block px-4 py-2 pl-8 text-sm text-gray-600 hover:text-primary-600 hover:bg-primary-50 rounded-lg"
+                onClick={() => setMobileMenuOpen(false)}>{cat.name}</Link>
             ))}
-            <Link
-              href="/productos"
-              className="block px-4 py-2.5 text-sm font-medium text-gray-700 hover:text-primary-600 hover:bg-primary-50 rounded-lg transition-colors"
-              onClick={() => setMobileMenuOpen(false)}
-            >
-              Todos los Productos
-            </Link>
-            <Link
-              href="/contacto"
-              className="block px-4 py-2.5 text-sm font-medium text-gray-700 hover:text-primary-600 hover:bg-primary-50 rounded-lg transition-colors"
-              onClick={() => setMobileMenuOpen(false)}
-            >
-              Contacto
-            </Link>
+            <Link href="/productos" className="block px-4 py-2.5 text-sm font-medium text-gray-700 hover:bg-primary-50 rounded-lg" onClick={() => setMobileMenuOpen(false)}>Todos los Productos</Link>
+            <Link href="/contacto" className="block px-4 py-2.5 text-sm font-medium text-gray-700 hover:bg-primary-50 rounded-lg" onClick={() => setMobileMenuOpen(false)}>Contacto</Link>
+            <hr className="my-2 border-gray-100" />
+            {user ? (
+              <>
+                {isAdmin && <Link href="/admin" className="block px-4 py-2.5 text-sm font-medium text-gray-700 hover:bg-primary-50 rounded-lg" onClick={() => setMobileMenuOpen(false)}>⚙️ Panel Admin</Link>}
+                <button onClick={() => { handleLogout(); setMobileMenuOpen(false) }} className="block w-full text-left px-4 py-2.5 text-sm font-medium text-red-600 hover:bg-red-50 rounded-lg">Cerrar Sesión</button>
+              </>
+            ) : (
+              <Link href="/auth/login" className="block px-4 py-2.5 text-sm font-medium text-primary-600 hover:bg-primary-50 rounded-lg" onClick={() => setMobileMenuOpen(false)}>Ingresar</Link>
+            )}
           </div>
         )}
       </div>

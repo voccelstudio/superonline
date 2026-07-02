@@ -1,17 +1,18 @@
 {
   "name": "supermercado-online",
-  "version": "1.0.0",
+  "version": "2.0.0",
   "private": true,
   "scripts": {
     "dev": "next dev",
     "build": "next build",
-    "start": "next start",
-    "export": "next export"
+    "start": "next start"
   },
   "dependencies": {
     "next": "^14.2.0",
     "react": "^18.3.0",
-    "react-dom": "^18.3.0"
+    "react-dom": "^18.3.0",
+    "@supabase/supabase-js": "^2.44.0",
+    "@supabase/ssr": "^0.5.0"
   },
   "devDependencies": {
     "autoprefixer": "^10.4.19",
